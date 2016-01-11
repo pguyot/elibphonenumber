@@ -28,7 +28,7 @@ check_for_package()
 {
   if [ "`apt-cache policy $1 | grep "(none)"`" ]; then
     echo "Error: Cannot find $1 - install it with apt-get install $1"
-    return 1;
+    exit 1;
   fi
 }
 
