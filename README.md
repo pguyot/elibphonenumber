@@ -6,11 +6,20 @@ Erlang port of [libphonenumber](https://github.com/googlei18n/libphonenumber).
 ##Note
 
 - This project is active. I'm doing updates very offen because I see the original author is no longer maintaining it.
-- This repository is a fork of [silviucpp/elibphonenumber][3], except this version is designed to be used with rebar3.
+- This repository is a fork of [silviucpp/elibphonenumber][3], except this version is designed to be used with rebar3 & hex.pm,
+  which means we have elixir support.
 
-## Compile
+## Dependencies
 
 You need compile `libphonenumber` and install it before compiling the project. You can read up on how people have done this on the [wiki.][2]
+
+## Use with mix
+
+```elixir
+defp deps do
+  [{:elibphonenumber, "~> 1.0"}]
+end
+```
 
 ## Run the tests
 
