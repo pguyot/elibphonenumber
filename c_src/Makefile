@@ -17,10 +17,12 @@ C_SRC_OUTPUT ?= $(CURDIR)/../priv/$(PROJECT).so
 # System type and C compiler/flags.
 
 UNAME_SYS := $(shell uname -s)
+HOMEBREW  := $(shell { type brew; } 2>/dev/null)
+
 ifeq ($(UNAME_SYS), Darwin)
 	CC ?= cc
-	CFLAGS ?= -O3 -std=c99 -arch x86_64 -finline-functions -Wall -Wmissing-prototypes
-	CXXFLAGS ?= -O3 -arch x86_64 -finline-functions -Wall
+	CXXFLAGS ?= -O3 -arch x86_64 -Wall
+	CFLAGS ?= -O3 -std=c99 -arch x86_64 -Wall -Wmissing-prototypes
 	LDFLAGS ?= -arch x86_64 -flat_namespace -undefined suppress
 else ifeq ($(UNAME_SYS), FreeBSD)
 	CC ?= cc
@@ -29,14 +31,23 @@ else ifeq ($(UNAME_SYS), FreeBSD)
 else ifeq ($(UNAME_SYS), Linux)
 	CC ?= gcc
 	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
-	CXXFLAGS ?= -g -O3 -finline-functions -Wall -Wextra -Werror -fno-exceptions -fno-rtti -Wno-missing-field-initializers -Wno-unused-parameter -Os -DI18N_PHONENUMBERS_NO_THREAD_SAFETY
+	CXXFLAGS ?= -g -O3 -finline-functions -Wall -Wextra -Werror
 endif
+
+ifneq ($(HOMEBREW), "")
+	HOMEBREW_PREFIX = $(shell brew --prefix)
+	HOMEBREW_CFLAGS = -I$(HOMEBREW_PREFIX)/opt/boost/include -I$(HOMEBREW_PREFIX)/opt/icu4c/include -I$(HOMEBREW_PREFIX)/opt/re2/include -I$(HOMEBREW_PREFIX)/opt/protobuf/include -I$(HOMEBREW_PREFIX)/opt/libphonenumber/include
+	HOMEBREW_LDFLAGS = -L$(HOMEBREW_PREFIX)/opt/boost/lib -L$(HOMEBREW_PREFIX)/opt/icu4c/lib -L$(HOMEBREW_PREFIX)/opt/re2/lib -L$(HOMEBREW_PREFIX)/opt/protobuf/lib -L$(HOMEBREW_PREFIX)/opt/libphonenumber/lib
+	CFLAGS += $(HOMEBREW_CFLAGS)
+	LDFLAGS += $(HOMEBREW_LDFLAGS)
+endif
+
 
 CFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 CXXFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 
-LDLIBS += -L $(ERL_INTERFACE_LIB_DIR) -lerl_interface -lei 
-LDFLAGS += -shared -lstdc++ -l:libphonenumber.so -lboost_system -lboost_thread -lboost_date_time -licui18n -licuuc -lprotobuf
+LDLIBS += -L $(ERL_INTERFACE_LIB_DIR) -lerl_interface -lei  -lstdc++ -lboost_system -lboost_date_time -licui18n -licuuc -lprotobuf -lgeocoding -lphonenumber
+LDFLAGS += -shared
 
 # Verbosity.
 
