@@ -2,7 +2,9 @@
  [
   {application, "Port driver for libphonenumber"},
   {description, "A port driver for libphonenumber"},
-  {vsn, git},
+  {vsn, "0.1.0"},
+  {maintainers, ["John Hamelink"]},
+  {links, [{"Github", "https://github.com/johnhamelink/elibphonenumber"}]},
   {registered, []},
   {applications, [
     kernel,
