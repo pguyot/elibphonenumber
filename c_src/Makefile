@@ -31,15 +31,17 @@ else ifeq ($(UNAME_SYS), FreeBSD)
 else ifeq ($(UNAME_SYS), Linux)
 	CC ?= gcc
 	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
-	CXXFLAGS ?= -g -O3 -finline-functions -Wall -Wextra -Werror
+	CXXFLAGS ?= -g -O3 -finline-functions -Wall -Werror
 endif
 
-ifneq ($(HOMEBREW), "")
-	HOMEBREW_PREFIX = $(shell brew --prefix)
-	HOMEBREW_CFLAGS = -I$(HOMEBREW_PREFIX)/opt/boost/include -I$(HOMEBREW_PREFIX)/opt/icu4c/include -I$(HOMEBREW_PREFIX)/opt/re2/include -I$(HOMEBREW_PREFIX)/opt/protobuf/include -I$(HOMEBREW_PREFIX)/opt/libphonenumber/include
-	HOMEBREW_LDFLAGS = -L$(HOMEBREW_PREFIX)/opt/boost/lib -L$(HOMEBREW_PREFIX)/opt/icu4c/lib -L$(HOMEBREW_PREFIX)/opt/re2/lib -L$(HOMEBREW_PREFIX)/opt/protobuf/lib -L$(HOMEBREW_PREFIX)/opt/libphonenumber/lib
-	CFLAGS += $(HOMEBREW_CFLAGS)
-	LDFLAGS += $(HOMEBREW_LDFLAGS)
+ifeq ($(UNAME_SYS), Darwin)
+	ifneq ($(HOMEBREW), "")
+		HOMEBREW_PREFIX = $(shell brew --prefix)
+		HOMEBREW_CFLAGS = -I$(HOMEBREW_PREFIX)/opt/boost/include -I$(HOMEBREW_PREFIX)/opt/icu4c/include -I$(HOMEBREW_PREFIX)/opt/re2/include -I$(HOMEBREW_PREFIX)/opt/protobuf/include -I$(HOMEBREW_PREFIX)/opt/libphonenumber/include
+		HOMEBREW_LDFLAGS = -L$(HOMEBREW_PREFIX)/opt/boost/lib -L$(HOMEBREW_PREFIX)/opt/icu4c/lib -L$(HOMEBREW_PREFIX)/opt/re2/lib -L$(HOMEBREW_PREFIX)/opt/protobuf/lib -L$(HOMEBREW_PREFIX)/opt/libphonenumber/lib
+		CFLAGS += $(HOMEBREW_CFLAGS)
+		LDFLAGS += $(HOMEBREW_LDFLAGS)
+	endif
 endif
 
 
