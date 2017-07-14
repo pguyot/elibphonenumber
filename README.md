@@ -3,7 +3,7 @@ elibphonenumber
 
 Erlang NIF for [libphonenumber](https://github.com/googlei18n/libphonenumber).
 
-##Note
+## Note
 
 - This project is active. I'm doing updates often because I see the original author is no longer maintaining it.
 - This repository is a fork of [silviucpp/elibphonenumber][3], except this version is designed to be used with rebar3 & hex.pm,
