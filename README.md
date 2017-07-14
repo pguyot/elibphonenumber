@@ -17,7 +17,7 @@ You need compile `libphonenumber` and install it before compiling the project. Y
 
 ```elixir
 defp deps do
-  [{:elibphonenumber, "~> 0.1"}]
+  [{:elibphonenumber, "~> 1.0"}]
 end
 ```
 
