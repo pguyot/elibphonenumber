@@ -5,6 +5,7 @@
   {vsn, "1.0.0"},
   {maintainers, ["John Hamelink"]},
   {links, [{"Github", "https://github.com/johnhamelink/elibphonenumber"}]},
+  {licenses, ["Apache"]},
   {registered, []},
   {applications, [
     kernel,
