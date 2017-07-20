@@ -12,5 +12,5 @@
     stdlib
   ]},
   {env, []},
-  {exclude_files, ["priv/phonenumber_util_nif.so"]}
+  {exclude_files, ["priv/phonenumber_util_nif.so", "c_src/phonenumber_util_nif.o"]}
 ]}.
