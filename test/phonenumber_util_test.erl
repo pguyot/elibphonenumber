@@ -44,7 +44,8 @@ normalize_digits_only_test() ->
     <<"03456234">> = phonenumber_util:normalize_digits_only(<<"034-56&+a#234">>).
 
 normalize_diallable_chars_only_test() ->
-    <<"03*456+#234">> = phonenumber_util:normalize_diallable_chars_only(<<"03*4-56&+a#234">>).
+    <<"03*456+#234">> = phonenumber_util:normalize_diallable_chars_only(<<"03*4-56&+a#234">>),
+    <<"03*456+1#234">> = phonenumber_util:normalize_diallable_chars_only(<<"03*4-56&+1a#234">>).
 
 get_national_significant_number_test() ->
     P1 = phonenumber:new(),
@@ -67,24 +68,6 @@ get_national_significant_number_test() ->
     P41 = phonenumber:set_country_code(39, P4),
     P42 = phonenumber:set_national_number(12345678, P41),
     <<"12345678">> = phonenumber_util:get_national_significant_number(P42).
-
-get_example_test() ->
-    P1 = phonenumber:new(),
-    P11 = phonenumber:set_country_code(49, P1),
-    P12 = phonenumber:set_national_number(30123456, P11),    
-    P12 = phonenumber_util:get_example_number(<<"DE">>),
-    P12 = phonenumber_util:get_example_number_for_type(<<"DE">>, fixed_line).
-
-get_example_for_non_geo_entity_test() ->
-    TFN = phonenumber:new(),
-    TFN1 = phonenumber:set_country_code(800, TFN),
-    TollFreeNumber = phonenumber:set_national_number(12345678, TFN1),
-    TollFreeNumber = phonenumber_util:get_example_number_for_non_geo_entity(800),  
-
-    UPR = phonenumber:new(),
-    UPR1 = phonenumber:set_country_code(979, UPR),
-    UniversalPremiumRate = phonenumber:set_national_number(123456789, UPR1),
-    UniversalPremiumRate = phonenumber_util:get_example_number_for_non_geo_entity(979). 
 
 get_length_of_geograpical_area_code_test() ->
     %% Google MTV, which has area code "650".
@@ -418,18 +401,6 @@ is_possible_number_with_reason_test() ->
     P51 = phonenumber:set_country_code(1, P5),
     P52 = phonenumber:set_national_number(65025300000, P51),
     too_long = phonenumber_util:is_possible_number_with_reason(P52).
-
-truncate_too_long_number_test() ->
-    %% US number 650-253-0000, but entered with one additional digit at the end.
-    TLN1 = phonenumber:new(),
-    TLN11 = phonenumber:set_country_code(1, TLN1),
-    TLN12 = phonenumber:set_national_number(65025300001, TLN11),
-    VN1 = phonenumber:new(),
-    VN11 = phonenumber:set_country_code(1, VN1),
-    VN12 = phonenumber:set_national_number(6502530000, VN11),
-
-    Truncate = phonenumber_util:truncate_too_long_number(TLN12),
-    VN12 = Truncate.
 
 format_us_number_test() ->
     P1 = phonenumber:new(),
