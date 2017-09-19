@@ -5,9 +5,9 @@ Erlang NIF for [libphonenumber](https://github.com/googlei18n/libphonenumber).
 
 ## Note
 
-- This project is active. I'm doing updates often because I see the original author is no longer maintaining it.
-- This repository is a fork of [silviucpp/elibphonenumber][3], except this version is designed to be used with rebar3 & hex.pm,
-  which means we have elixir support.
+This repository is a fork of [johnhamelink/elibphonenumber][4] which itself is a fork of [silviucpp/elibphonenumber][3].
+
+Compared to upstream version, this repository includes recent from [silviucpp/elibphonenumber][3], including `phonenumber_to_carrier` module, as well as a fix to compile elibphonenumber on FreeBSD.
 
 ## Dependencies
 
@@ -17,7 +17,7 @@ You need compile `libphonenumber` and install it before compiling the project. Y
 
 ```elixir
 defp deps do
-  [{:elibphonenumber, "~> 1.0"}]
+  [{:elibphonenumber, git: "git://github.com/pguyot/elibphonenumber.git"}]
 end
 ```
 
@@ -31,3 +31,4 @@ rebar3 eunit
 [1]:https://www.wowapp.com/w/silviu/Silviu-Caragea
 [2]:https://github.com/johnhamelink/elibphonenumber/wiki/Compiling-Libphonenumber
 [3]:https://github.com/silviucpp/elibphonenumber
+[4]:https://github.com/johnhamelink/elibphonenumber
