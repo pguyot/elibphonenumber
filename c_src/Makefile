@@ -22,7 +22,7 @@ ifeq ($(UNAME_SYS), Darwin)
 	LDFLAGS ?= -arch x86_64 -flat_namespace -undefined suppress
 else ifeq ($(UNAME_SYS), FreeBSD)
 	CC ?= cc
-	CXXFLAGS ?= -O3 -finline-functions -Wall
+	CXXFLAGS ?= -O3 -finline-functions -Wall -Wno-expansion-to-defined
 else ifeq ($(UNAME_SYS), Linux)
 	CC ?= gcc
 	CXXFLAGS ?= -g -O3 -finline-functions -Wall -Werror
@@ -36,6 +36,9 @@ ifeq ($(UNAME_SYS), Darwin)
 		LDFLAGS += $(HOMEBREW_LDFLAGS)
 		CXXFLAGS += $(HOMEBREW_CFLAGS)
 	endif
+else
+        CXXFLAGS += -I/usr/local/include
+        LDFLAGS += -L/usr/local/lib
 endif
 
 CXXFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)

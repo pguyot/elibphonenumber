@@ -7,6 +7,7 @@
 #include <string>
 
 using namespace i18n::phonenumbers;
+using namespace std;
 
 struct atoms
 {
