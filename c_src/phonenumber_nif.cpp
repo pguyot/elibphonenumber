@@ -1,6 +1,8 @@
 #include <erl_nif.h>
 #include <phonenumbers/phonenumberutil.h>
 #include <phonenumbers/phonenumber.pb.h>
+#include <phonenumbers/geocoding/phonenumber_offline_geocoder.h>
+
 #include <memory>
 #include <iostream>
 #include <set>
@@ -196,6 +198,45 @@ static bool term_to_boolean(const ERL_NIF_TERM term, bool* boolean)
 	}
 
 	return false;
+}
+
+static int term_to_locale(ErlNifEnv* env, const ERL_NIF_TERM term, Locale* locale) {
+    char language[256];
+    char* country_ptr = 0;
+    char country[256];
+    char* variant_ptr = 0;
+    char variant[256];
+    if (enif_is_tuple(env, term)) {
+        const ERL_NIF_TERM* elements;
+        int arity;
+        enif_get_tuple(env, term, &arity, &elements);
+        if ((arity == 2 || arity == 3)
+            && enif_get_atom(env, elements[0], language, sizeof(language), ERL_NIF_LATIN1)
+            && enif_get_atom(env, elements[1], country, sizeof(country), ERL_NIF_LATIN1)
+            && (arity == 2 || enif_get_atom(env, elements[2], variant, sizeof(variant), ERL_NIF_LATIN1))) {
+            country_ptr = country;
+            if (arity == 3) {
+                variant_ptr = variant;
+            }
+        } else {
+            return 0;
+        }
+    } else if (enif_is_atom(env, term)) {
+        if (!enif_get_atom(env, term, language, sizeof(language), ERL_NIF_LATIN1)) {
+            return 0;
+        }
+    } else if (enif_is_binary(env, term) || enif_is_list(env, term)) {
+        ErlNifBinary bin;
+        int r = enif_inspect_iolist_as_binary(env, term, &bin);
+        if (r && bin.size < sizeof(language) - 1) {
+            memcpy(bin.data, language, bin.size);
+            language[bin.size] = 0;
+        } else {
+            return 0;
+        }
+    }
+    *locale = Locale(language, country_ptr, variant_ptr);
+    return 1;
 }
 
 static ERL_NIF_TERM boolean_to_term(bool boolean)
@@ -460,9 +501,9 @@ static bool term_to_phonenumber(ErlNifEnv* env, const ERL_NIF_TERM term, PhoneNu
     return true;
 }
 
-// NIF functions
+// NIF bindings for PhoneNumberUtil class
 
-static ERL_NIF_TERM GetSupportedRegions_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilGetSupportedRegions_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumberUtil *phone_util_ = PhoneNumberUtil::GetInstance();
 
@@ -486,7 +527,7 @@ static ERL_NIF_TERM GetSupportedRegions_nif(ErlNifEnv* env, int argc, const ERL_
     return enif_make_list_from_array(env, arr, cnt);
 }
 
-static ERL_NIF_TERM IsAlphaNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilIsAlphaNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary bin;
     if (!enif_inspect_iolist_as_binary(env, argv[0], &bin))
@@ -498,7 +539,7 @@ static ERL_NIF_TERM IsAlphaNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TE
     return boolean_to_term(phone_util_->IsAlphaNumber(str));
 }
 
-static ERL_NIF_TERM ConvertAlphaCharactersInNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilConvertAlphaCharactersInNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary bin;
     if (!enif_inspect_iolist_as_binary(env, argv[0], &bin))
@@ -516,7 +557,7 @@ static ERL_NIF_TERM ConvertAlphaCharactersInNumber_nif(ErlNifEnv* env, int argc,
     return ret;
 }
 
-static ERL_NIF_TERM NormalizeDigitsOnly_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilNormalizeDigitsOnly_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary bin;
     if (!enif_inspect_iolist_as_binary(env, argv[0], &bin))
@@ -534,7 +575,7 @@ static ERL_NIF_TERM NormalizeDigitsOnly_nif(ErlNifEnv* env, int argc, const ERL_
     return ret;
 }
 
-static ERL_NIF_TERM NormalizeDiallableCharsOnly_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilNormalizeDiallableCharsOnly_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary bin;
     if (!enif_inspect_iolist_as_binary(env, argv[0], &bin))
@@ -552,7 +593,7 @@ static ERL_NIF_TERM NormalizeDiallableCharsOnly_nif(ErlNifEnv* env, int argc, co
     return ret;
 }
 
-static ERL_NIF_TERM GetNationalSignificantNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilGetNationalSignificantNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -569,7 +610,7 @@ static ERL_NIF_TERM GetNationalSignificantNumber_nif(ErlNifEnv* env, int argc, c
     return ret;
 }
 
-static ERL_NIF_TERM GetLengthOfGeographicalAreaCode_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilGetLengthOfGeographicalAreaCode_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -579,7 +620,7 @@ static ERL_NIF_TERM GetLengthOfGeographicalAreaCode_nif(ErlNifEnv* env, int argc
     return enif_make_int(env, phone_util_->GetLengthOfGeographicalAreaCode(phoneNumber));
 }
 
-static ERL_NIF_TERM GetLengthOfNationalDestinationCode_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilGetLengthOfNationalDestinationCode_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -589,7 +630,7 @@ static ERL_NIF_TERM GetLengthOfNationalDestinationCode_nif(ErlNifEnv* env, int a
     return enif_make_int(env, phone_util_->GetLengthOfNationalDestinationCode(phoneNumber));
 }
 
-static ERL_NIF_TERM GetCountryMobileToken_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilGetCountryMobileToken_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     int code;
     if (!enif_get_int(env, argv[0], &code))
@@ -608,7 +649,7 @@ static ERL_NIF_TERM GetCountryMobileToken_nif(ErlNifEnv* env, int argc, const ER
     return ret;
 }
 
-static ERL_NIF_TERM Format_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilFormat_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -629,7 +670,7 @@ static ERL_NIF_TERM Format_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
     return ret;
 }
 
-static ERL_NIF_TERM FormatNationalNumberWithPreferredCarrierCode_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilFormatNationalNumberWithPreferredCarrierCode_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -651,7 +692,7 @@ static ERL_NIF_TERM FormatNationalNumberWithPreferredCarrierCode_nif(ErlNifEnv* 
     return ret;
 }
 
-static ERL_NIF_TERM FormatNationalNumberWithCarrierCode_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilFormatNationalNumberWithCarrierCode_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -673,7 +714,7 @@ static ERL_NIF_TERM FormatNationalNumberWithCarrierCode_nif(ErlNifEnv* env, int 
     return ret;
 }
 
-static ERL_NIF_TERM FormatNumberForMobileDialing_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilFormatNumberForMobileDialing_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -699,7 +740,7 @@ static ERL_NIF_TERM FormatNumberForMobileDialing_nif(ErlNifEnv* env, int argc, c
     return ret;
 }
 
-static ERL_NIF_TERM FormatOutOfCountryCallingNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilFormatOutOfCountryCallingNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -721,7 +762,7 @@ static ERL_NIF_TERM FormatOutOfCountryCallingNumber_nif(ErlNifEnv* env, int argc
     return ret;
 }
 
-static ERL_NIF_TERM FormatInOriginalFormat_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilFormatInOriginalFormat_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -743,7 +784,7 @@ static ERL_NIF_TERM FormatInOriginalFormat_nif(ErlNifEnv* env, int argc, const E
     return ret;
 }
 
-static ERL_NIF_TERM FormatOutOfCountryKeepingAlphaChars_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilFormatOutOfCountryKeepingAlphaChars_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -765,7 +806,7 @@ static ERL_NIF_TERM FormatOutOfCountryKeepingAlphaChars_nif(ErlNifEnv* env, int 
     return ret;
 }
 
-static ERL_NIF_TERM TruncateTooLongNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilTruncateTooLongNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -777,7 +818,7 @@ static ERL_NIF_TERM TruncateTooLongNumber_nif(ErlNifEnv* env, int argc, const ER
     return phonenumber_to_term(env, phoneNumber);
 }
 
-static ERL_NIF_TERM GetNumberType_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilGetNumberType_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -788,7 +829,7 @@ static ERL_NIF_TERM GetNumberType_nif(ErlNifEnv* env, int argc, const ERL_NIF_TE
     return phonenumber_type_to_term(phone_util_->GetNumberType(phoneNumber));
 }
 
-static ERL_NIF_TERM IsValidNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilIsValidNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -798,7 +839,7 @@ static ERL_NIF_TERM IsValidNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TE
     return boolean_to_term(phone_util_->IsValidNumber(phoneNumber));
 }
 
-static ERL_NIF_TERM IsValidNumberForRegion_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilIsValidNumberForRegion_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -815,7 +856,7 @@ static ERL_NIF_TERM IsValidNumberForRegion_nif(ErlNifEnv* env, int argc, const E
     return boolean_to_term(phone_util_->IsValidNumberForRegion(phoneNumber, region_code));
 }
 
-static ERL_NIF_TERM GetRegionCodeForNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilGetRegionCodeForNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -832,7 +873,7 @@ static ERL_NIF_TERM GetRegionCodeForNumber_nif(ErlNifEnv* env, int argc, const E
     return ret;
 }
 
-static ERL_NIF_TERM GetCountryCodeForRegion_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilGetCountryCodeForRegion_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary bin;
     if (!enif_inspect_iolist_as_binary(env, argv[0], &bin))
@@ -844,7 +885,7 @@ static ERL_NIF_TERM GetCountryCodeForRegion_nif(ErlNifEnv* env, int argc, const 
     return enif_make_int(env, phone_util_->GetCountryCodeForRegion(region_code));
 }
 
-static ERL_NIF_TERM GetRegionCodeForCountryCode_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilGetRegionCodeForCountryCode_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     int code;
     if (!enif_get_int(env, argv[0], &code))
@@ -863,7 +904,7 @@ static ERL_NIF_TERM GetRegionCodeForCountryCode_nif(ErlNifEnv* env, int argc, co
     return ret;
 }
 
-static ERL_NIF_TERM GetRegionCodesForCountryCallingCode_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilGetRegionCodesForCountryCallingCode_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     int code;
     if (!enif_get_int(env, argv[0], &code))
@@ -892,7 +933,7 @@ static ERL_NIF_TERM GetRegionCodesForCountryCallingCode_nif(ErlNifEnv* env, int 
     return enif_make_list_from_array(env, arr, cnt);
 }
 
-static ERL_NIF_TERM IsNANPACountry_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilIsNANPACountry_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary regionCodeNif;
     if (!enif_inspect_iolist_as_binary(env, argv[0], &regionCodeNif))
@@ -903,7 +944,7 @@ static ERL_NIF_TERM IsNANPACountry_nif(ErlNifEnv* env, int argc, const ERL_NIF_T
     return boolean_to_term(phone_util_->IsNANPACountry(region_code));
 }
 
-static ERL_NIF_TERM GetNddPrefixForRegion_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilGetNddPrefixForRegion_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary regionCodeNif;
     if (!enif_inspect_iolist_as_binary(env, argv[0], &regionCodeNif))
@@ -926,7 +967,7 @@ static ERL_NIF_TERM GetNddPrefixForRegion_nif(ErlNifEnv* env, int argc, const ER
     return ret;
 }
 
-static ERL_NIF_TERM IsPossibleNumberWithReason_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilIsPossibleNumberWithReason_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -938,7 +979,7 @@ static ERL_NIF_TERM IsPossibleNumberWithReason_nif(ErlNifEnv* env, int argc, con
     return phonenumber_validation_result_to_term(validation_result);
 }
 
-static ERL_NIF_TERM IsPossibleNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilIsPossibleNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber))
@@ -948,7 +989,7 @@ static ERL_NIF_TERM IsPossibleNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF
     return boolean_to_term(phone_util_->IsPossibleNumber(phoneNumber));
 }
 
-static ERL_NIF_TERM IsPossibleNumberForString_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilIsPossibleNumberForString_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary nifNumber;
     if (!enif_inspect_iolist_as_binary(env, argv[0], &nifNumber))
@@ -967,7 +1008,7 @@ static ERL_NIF_TERM IsPossibleNumberForString_nif(ErlNifEnv* env, int argc, cons
     return boolean_to_term(phone_util_->IsPossibleNumberForString(number, region_dialing_from));
 }
 
-static ERL_NIF_TERM GetExampleNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilGetExampleNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary bin;
     if (!enif_inspect_iolist_as_binary(env, argv[0], &bin))
@@ -984,7 +1025,7 @@ static ERL_NIF_TERM GetExampleNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF
     return ATOMS.atomFalse;
 }
 
-static ERL_NIF_TERM GetExampleNumberForType_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilGetExampleNumberForType_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary bin;
     if (!enif_inspect_iolist_as_binary(env, argv[0], &bin))
@@ -1005,7 +1046,7 @@ static ERL_NIF_TERM GetExampleNumberForType_nif(ErlNifEnv* env, int argc, const 
     return ATOMS.atomFalse;
 }
 
-static ERL_NIF_TERM GetExampleNumberForNonGeoEntity_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilGetExampleNumberForNonGeoEntity_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     int code;
     if (!enif_get_int(env, argv[0], &code))
@@ -1021,7 +1062,7 @@ static ERL_NIF_TERM GetExampleNumberForNonGeoEntity_nif(ErlNifEnv* env, int argc
     return ATOMS.atomFalse;
 }
 
-static ERL_NIF_TERM Parse_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilParse_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary numberToParse;
     if (!enif_inspect_iolist_as_binary(env, argv[0], &numberToParse))
@@ -1041,7 +1082,7 @@ static ERL_NIF_TERM Parse_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[
     return phonenumber_to_term(env, phoneNumber);
 }
 
-static ERL_NIF_TERM ParseAndKeepRawInput_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilParseAndKeepRawInput_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary numberToParse;
     if (!enif_inspect_iolist_as_binary(env, argv[0], &numberToParse))
@@ -1061,7 +1102,7 @@ static ERL_NIF_TERM ParseAndKeepRawInput_nif(ErlNifEnv* env, int argc, const ERL
     return phonenumber_to_term(env, phoneNumber);
 }
 
-static ERL_NIF_TERM IsNumberMatch_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilIsNumberMatch_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber1;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber1))
@@ -1077,7 +1118,7 @@ static ERL_NIF_TERM IsNumberMatch_nif(ErlNifEnv* env, int argc, const ERL_NIF_TE
     return phonenumber_match_type_to_term(match_type);
 }
 
-static ERL_NIF_TERM IsNumberMatchWithTwoStrings_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilIsNumberMatchWithTwoStrings_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary nifFirstNumber;
     if (!enif_inspect_iolist_as_binary(env, argv[0], &nifFirstNumber))
@@ -1095,7 +1136,7 @@ static ERL_NIF_TERM IsNumberMatchWithTwoStrings_nif(ErlNifEnv* env, int argc, co
     return phonenumber_match_type_to_term(match_type);
 }
 
-static ERL_NIF_TERM IsNumberMatchWithOneString_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM PhoneNumberUtilIsNumberMatchWithOneString_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     PhoneNumber phoneNumber1;
     if (!term_to_phonenumber(env, argv[0], &phoneNumber1))
@@ -1112,45 +1153,98 @@ static ERL_NIF_TERM IsNumberMatchWithOneString_nif(ErlNifEnv* env, int argc, con
     return phonenumber_match_type_to_term(match_type);
 }
 
+// NIF bindings for PhoneNumberOfflineGeocoder class
+
+static ERL_NIF_TERM PhoneNumberOfflineGeocoderGetDescriptionForNumberGeneric(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[], bool valid)
+{
+    PhoneNumberOfflineGeocoder geocoder;
+    PhoneNumber phoneNumber;
+    unsigned char *buffer;
+    ERL_NIF_TERM description;
+    if (!term_to_phonenumber(env, argv[0], &phoneNumber))
+        return enif_make_badarg(env);
+
+    Locale locale;
+    if (!term_to_locale(env, argv[1], &locale))
+        return enif_make_badarg(env);
+        
+    string description_str;
+    if (argc == 2) {
+        if (valid) {
+            description_str = geocoder.GetDescriptionForValidNumber(phoneNumber, locale);
+        } else {
+            description_str = geocoder.GetDescriptionForNumber(phoneNumber, locale);
+        }
+    } else {
+        ErlNifBinary country;
+        if (!enif_inspect_iolist_as_binary(env, argv[2], &country)) return false;
+        if (valid) {
+            description_str = geocoder.GetDescriptionForValidNumber(phoneNumber, locale, string( (char*) country.data, country.size));
+        } else {
+            description_str = geocoder.GetDescriptionForNumber(phoneNumber, locale, string( (char*) country.data, country.size));
+        }
+    }
+    
+    buffer = enif_make_new_binary(env, description_str.size(), &description);
+    std::copy(description_str.begin(), description_str.end(), buffer);
+    
+    return description;
+}
+
+static ERL_NIF_TERM PhoneNumberOfflineGeocoderGetDescriptionForValidNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    return PhoneNumberOfflineGeocoderGetDescriptionForNumberGeneric(env, argc, argv, true);
+}
+
+static ERL_NIF_TERM PhoneNumberOfflineGeocoderGetDescriptionForNumber_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    return PhoneNumberOfflineGeocoderGetDescriptionForNumberGeneric(env, argc, argv, false);
+}
+
 static ErlNifFunc nif_funcs[] =
 {
-    {"get_supported_regions", 0, GetSupportedRegions_nif},
-    {"is_alpha_number", 1, IsAlphaNumber_nif},
-    {"convert_alpha_characters_in_number", 1, ConvertAlphaCharactersInNumber_nif},
-    {"normalize_digits_only", 1, NormalizeDigitsOnly_nif},
-    {"normalize_diallable_chars_only", 1, NormalizeDiallableCharsOnly_nif},
-    {"get_national_significant_number", 1, GetNationalSignificantNumber_nif},
-    {"get_length_of_geograpical_area_code", 1, GetLengthOfGeographicalAreaCode_nif},
-    {"get_length_of_national_destination_code", 1, GetLengthOfNationalDestinationCode_nif},
-    {"get_country_mobile_token", 1, GetCountryMobileToken_nif},
-    {"format", 2, Format_nif},
-    {"format_national_number_with_carrier_code", 2, FormatNationalNumberWithCarrierCode_nif},
-    {"format_national_number_with_preferred_carrier_code", 2, FormatNationalNumberWithPreferredCarrierCode_nif},
-    {"format_number_for_mobile_dialing", 3, FormatNumberForMobileDialing_nif},
-    {"format_out_of_country_calling_number", 2, FormatOutOfCountryCallingNumber_nif},
-    {"format_in_original_format", 2, FormatInOriginalFormat_nif},
-    {"format_out_of_country_keeping_alpha_chars", 2, FormatOutOfCountryKeepingAlphaChars_nif},
-    {"truncate_too_long_number", 1, TruncateTooLongNumber_nif},
-    {"get_number_type", 1, GetNumberType_nif},
-    {"is_valid_number", 1, IsValidNumber_nif},
-    {"is_valid_number_for_region", 2, IsValidNumberForRegion_nif},
-    {"get_region_code_for_number", 1, GetRegionCodeForNumber_nif},
-    {"get_country_code_for_region", 1, GetCountryCodeForRegion_nif},
-    {"get_region_code_for_country_code", 1, GetRegionCodeForCountryCode_nif},
-    {"get_region_codes_for_country_calling_code", 1, GetRegionCodesForCountryCallingCode_nif},
-    {"is_nanpa_country", 1, IsNANPACountry_nif},
-    {"get_ndd_prefix_for_region", 2, GetNddPrefixForRegion_nif},
-    {"is_possible_number_with_reason", 1, IsPossibleNumberWithReason_nif},
-    {"is_possible_number", 1, IsPossibleNumber_nif},
-    {"is_possible_number_for_string", 2, IsPossibleNumberForString_nif},
-    {"get_example_number", 1, GetExampleNumber_nif},
-    {"get_example_number_for_type", 2, GetExampleNumberForType_nif},
-    {"get_example_number_for_non_geo_entity", 1, GetExampleNumberForNonGeoEntity_nif},
-    {"parse", 2, Parse_nif},
-    {"parse_and_keep_raw_input", 2, ParseAndKeepRawInput_nif},
-    {"is_number_match", 2, IsNumberMatch_nif},
-    {"is_number_match_with_two_strings", 2, IsNumberMatchWithTwoStrings_nif},
-    {"is_number_match_with_one_string", 2, IsNumberMatchWithOneString_nif}
+    {"phonenumber_util.get_supported_regions", 0, PhoneNumberUtilGetSupportedRegions_nif},
+    {"phonenumber_util.is_alpha_number", 1, PhoneNumberUtilIsAlphaNumber_nif},
+    {"phonenumber_util.convert_alpha_characters_in_number", 1, PhoneNumberUtilConvertAlphaCharactersInNumber_nif},
+    {"phonenumber_util.normalize_digits_only", 1, PhoneNumberUtilNormalizeDigitsOnly_nif},
+    {"phonenumber_util.normalize_diallable_chars_only", 1, PhoneNumberUtilNormalizeDiallableCharsOnly_nif},
+    {"phonenumber_util.get_national_significant_number", 1, PhoneNumberUtilGetNationalSignificantNumber_nif},
+    {"phonenumber_util.get_length_of_geograpical_area_code", 1, PhoneNumberUtilGetLengthOfGeographicalAreaCode_nif},
+    {"phonenumber_util.get_length_of_national_destination_code", 1, PhoneNumberUtilGetLengthOfNationalDestinationCode_nif},
+    {"phonenumber_util.get_country_mobile_token", 1, PhoneNumberUtilGetCountryMobileToken_nif},
+    {"phonenumber_util.format", 2, PhoneNumberUtilFormat_nif},
+    {"phonenumber_util.format_national_number_with_carrier_code", 2, PhoneNumberUtilFormatNationalNumberWithCarrierCode_nif},
+    {"phonenumber_util.format_national_number_with_preferred_carrier_code", 2, PhoneNumberUtilFormatNationalNumberWithPreferredCarrierCode_nif},
+    {"phonenumber_util.format_number_for_mobile_dialing", 3, PhoneNumberUtilFormatNumberForMobileDialing_nif},
+    {"phonenumber_util.format_out_of_country_calling_number", 2, PhoneNumberUtilFormatOutOfCountryCallingNumber_nif},
+    {"phonenumber_util.format_in_original_format", 2, PhoneNumberUtilFormatInOriginalFormat_nif},
+    {"phonenumber_util.format_out_of_country_keeping_alpha_chars", 2, PhoneNumberUtilFormatOutOfCountryKeepingAlphaChars_nif},
+    {"phonenumber_util.truncate_too_long_number", 1, PhoneNumberUtilTruncateTooLongNumber_nif},
+    {"phonenumber_util.get_number_type", 1, PhoneNumberUtilGetNumberType_nif},
+    {"phonenumber_util.is_valid_number", 1, PhoneNumberUtilIsValidNumber_nif},
+    {"phonenumber_util.is_valid_number_for_region", 2, PhoneNumberUtilIsValidNumberForRegion_nif},
+    {"phonenumber_util.get_region_code_for_number", 1, PhoneNumberUtilGetRegionCodeForNumber_nif},
+    {"phonenumber_util.get_country_code_for_region", 1, PhoneNumberUtilGetCountryCodeForRegion_nif},
+    {"phonenumber_util.get_region_code_for_country_code", 1, PhoneNumberUtilGetRegionCodeForCountryCode_nif},
+    {"phonenumber_util.get_region_codes_for_country_calling_code", 1, PhoneNumberUtilGetRegionCodesForCountryCallingCode_nif},
+    {"phonenumber_util.is_nanpa_country", 1, PhoneNumberUtilIsNANPACountry_nif},
+    {"phonenumber_util.get_ndd_prefix_for_region", 2, PhoneNumberUtilGetNddPrefixForRegion_nif},
+    {"phonenumber_util.is_possible_number_with_reason", 1, PhoneNumberUtilIsPossibleNumberWithReason_nif},
+    {"phonenumber_util.is_possible_number", 1, PhoneNumberUtilIsPossibleNumber_nif},
+    {"phonenumber_util.is_possible_number_for_string", 2, PhoneNumberUtilIsPossibleNumberForString_nif},
+    {"phonenumber_util.get_example_number", 1, PhoneNumberUtilGetExampleNumber_nif},
+    {"phonenumber_util.get_example_number_for_type", 2, PhoneNumberUtilGetExampleNumberForType_nif},
+    {"phonenumber_util.get_example_number_for_non_geo_entity", 1, PhoneNumberUtilGetExampleNumberForNonGeoEntity_nif},
+    {"phonenumber_util.parse", 2, PhoneNumberUtilParse_nif},
+    {"phonenumber_util.parse_and_keep_raw_input", 2, PhoneNumberUtilParseAndKeepRawInput_nif},
+    {"phonenumber_util.is_number_match", 2, PhoneNumberUtilIsNumberMatch_nif},
+    {"phonenumber_util.is_number_match_with_two_strings", 2, PhoneNumberUtilIsNumberMatchWithTwoStrings_nif},
+    {"phonenumber_util.is_number_match_with_one_string", 2, PhoneNumberUtilIsNumberMatchWithOneString_nif},
+
+    {"phonenumber_offline_geocoder.get_description_for_valid_number", 2, PhoneNumberOfflineGeocoderGetDescriptionForValidNumber_nif},
+    {"phonenumber_offline_geocoder.get_description_for_valid_number", 3, PhoneNumberOfflineGeocoderGetDescriptionForValidNumber_nif},
+    {"phonenumber_offline_geocoder.get_description_for_number", 2, PhoneNumberOfflineGeocoderGetDescriptionForNumber_nif},
+    {"phonenumber_offline_geocoder.get_description_for_number", 3, PhoneNumberOfflineGeocoderGetDescriptionForNumber_nif}
 };
 
-ERL_NIF_INIT(phonenumber_util, nif_funcs, on_nif_load, NULL, NULL, NULL)
+ERL_NIF_INIT(phonenumber_nif, nif_funcs, on_nif_load, NULL, NULL, NULL)
