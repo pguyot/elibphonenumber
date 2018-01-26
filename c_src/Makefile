@@ -43,7 +43,7 @@ endif
 
 CXXFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 
-LDLIBS += -L $(ERL_INTERFACE_LIB_DIR) -lerl_interface -lei  -lstdc++ -lboost_system -lboost_date_time -licui18n -licuuc -lprotobuf -lgeocoding -lphonenumber
+LDLIBS += -L $(ERL_INTERFACE_LIB_DIR) -lerl_interface -lei  -lstdc++ -licui18n -licuuc -lprotobuf -lgeocoding -lphonenumber
 LDFLAGS += -shared
 
 # Verbosity.
