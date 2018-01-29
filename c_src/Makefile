@@ -15,6 +15,7 @@ C_SRC_OUTPUT ?= ../priv/$(PROJECT).so
 
 UNAME_SYS := $(shell uname -s)
 HOMEBREW  := $(shell { type brew; } 2>/dev/null)
+MACPORTS  := $(shell { type port; } 2>/dev/null)
 
 ifeq ($(UNAME_SYS), Darwin)
 	CC ?= cc
@@ -35,6 +36,13 @@ ifeq ($(UNAME_SYS), Darwin)
 		HOMEBREW_LDFLAGS = -L$(HOMEBREW_PREFIX)/opt/boost/lib -L$(HOMEBREW_PREFIX)/opt/icu4c/lib -L$(HOMEBREW_PREFIX)/opt/re2/lib -L$(HOMEBREW_PREFIX)/opt/protobuf/lib -L$(HOMEBREW_PREFIX)/opt/libphonenumber/lib
 		LDFLAGS += $(HOMEBREW_LDFLAGS)
 		CXXFLAGS += $(HOMEBREW_CFLAGS)
+	endif
+	ifneq ($(MACPORTS), "")
+		MACPORTS_PREFIX = /opt/local
+		MACPORTS_CFLAGS = -I$(MACPORTS_PREFIX)/include
+		MACPORTS_LDFLAGS = -L$(MACPORTS_PREFIX)/lib
+		LDFLAGS += $(MACPORTS_LDFLAGS)
+		CXXFLAGS += $(MACPORTS_CFLAGS)
 	endif
 else
         CXXFLAGS += -I/usr/local/include
